@@ -30,6 +30,7 @@ import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
 import javax.servlet.http.WebConnection;
@@ -138,6 +139,9 @@ class Http2UpgradeHandler extends AbstractStream implements InternalHttpUpgradeH
     // Stream concurrency control
     private AtomicInteger streamConcurrency = null;
     private Queue<StreamRunnable> queuedRunnable = null;
+
+    // Track 'overhead' frames vs 'request/response' frames
+    private final AtomicLong overheadCount = new AtomicLong(-10);
 
 
     Http2UpgradeHandler(Http2Protocol protocol, Adapter adapter, Request coyoteRequest) {
@@ -329,9 +333,22 @@ class Http2UpgradeHandler extends AbstractStream implements InternalHttpUpgradeH
                             }
                         }
                     }
-                    // No more frames to read so switch to the keep-alive
-                    // timeout.
-                    socketWrapper.setReadTimeout(protocol.getKeepAliveTimeout());
+
+                    if (overheadCount.get() > 0) {
+                        throw new ConnectionException(
+                                sm.getString("upgradeHandler.tooMuchOverhead", connectionId),
+                                Http2Error.ENHANCE_YOUR_CALM);
+                    }
+
+                    if (activeRemoteStreamCount.get() == 0) {
+                        // No streams currently active. Use the keep-alive
+                        // timeout for the connection.
+                        socketWrapper.setReadTimeout(protocol.getKeepAliveTimeout());
+                    } else {
+                        // Streams currently active. Individual streams have
+                        // timeouts so keep the connection open.
+                        socketWrapper.setReadTimeout(-1);
+                    }
                 } catch (Http2Exception ce) {
                     // Really ConnectionException
                     if (log.isDebugEnabled()) {
@@ -631,6 +648,9 @@ class Http2UpgradeHandler extends AbstractStream implements InternalHttpUpgradeH
             log.debug(sm.getString("upgradeHandler.writeBody", connectionId, stream.getIdentifier(),
                     Integer.toString(len)));
         }
+
+        reduceOverheadCount();
+
         // Need to check this now since sending end of stream will change this.
         boolean writeable = stream.canWrite();
         byte[] header = new byte[9];
@@ -1186,6 +1206,16 @@ class Http2UpgradeHandler extends AbstractStream implements InternalHttpUpgradeH
     }
 
 
+    private void reduceOverheadCount() {
+        overheadCount.decrementAndGet();
+    }
+
+
+    private void increaseOverheadCount() {
+        overheadCount.addAndGet(getProtocol().getOverheadCountFactor());
+    }
+
+
     // ----------------------------------------------- Http2Parser.Input methods
 
     @Override
@@ -1240,6 +1270,7 @@ class Http2UpgradeHandler extends AbstractStream implements InternalHttpUpgradeH
 
     @Override
     public ByteBuffer startRequestBodyFrame(int streamId, int payloadSize) throws Http2Exception {
+        reduceOverheadCount();
         Stream stream = getStream(streamId, true);
         stream.checkState(FrameType.DATA);
         stream.receivedData(payloadSize);
@@ -1283,6 +1314,8 @@ class Http2UpgradeHandler extends AbstractStream implements InternalHttpUpgradeH
         // Check the pause state before processing headers since the pause state
         // determines if a new stream is created or if this stream is ignored.
         checkPauseState();
+
+        reduceOverheadCount();
 
         if (connectionState.get().isNewStreamAllowed()) {
             Stream stream = getStream(streamId, false);
@@ -1333,6 +1366,9 @@ class Http2UpgradeHandler extends AbstractStream implements InternalHttpUpgradeH
             throw new ConnectionException(sm.getString("upgradeHandler.dependency.invalid",
                     getConnectionId(), Integer.valueOf(streamId)), Http2Error.PROTOCOL_ERROR);
         }
+
+        increaseOverheadCount();
+
         Stream stream = getStream(streamId, false);
         if (stream == null) {
             stream = createRemoteStream(streamId);
@@ -1377,6 +1413,9 @@ class Http2UpgradeHandler extends AbstractStream implements InternalHttpUpgradeH
 
     @Override
     public void setting(Setting setting, long value) throws ConnectionException {
+
+        increaseOverheadCount();
+
         // Special handling required
         if (setting == Setting.INITIAL_WINDOW_SIZE) {
             long oldValue = remoteSettings.getInitialWindowSize();
@@ -1418,6 +1457,9 @@ class Http2UpgradeHandler extends AbstractStream implements InternalHttpUpgradeH
 
     @Override
     public void pingReceive(byte[] payload, boolean ack) throws IOException {
+        if (!ack) {
+            increaseOverheadCount();
+        }
         pingManager.receivePing(payload, ack);
     }
 

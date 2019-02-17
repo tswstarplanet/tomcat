@@ -45,6 +45,7 @@ import javax.websocket.RemoteEndpoint;
 import javax.websocket.SendResult;
 import javax.websocket.Session;
 import javax.websocket.WebSocketContainer;
+import javax.websocket.server.ServerEndpointConfig;
 
 import org.apache.juli.logging.Log;
 import org.apache.juli.logging.LogFactory;
@@ -416,7 +417,7 @@ public class WsSession implements Session {
     @Override
     public Set<Session> getOpenSessions() {
         checkState();
-        return webSocketContainer.getOpenSessions(localEndpoint);
+        return webSocketContainer.getOpenSessions(getSessionMapKey());
     }
 
 
@@ -455,6 +456,22 @@ public class WsSession implements Session {
      * @param closeReasonLocal   The close reason to pass to the local endpoint
      */
     public void doClose(CloseReason closeReasonMessage, CloseReason closeReasonLocal) {
+        doClose(closeReasonMessage, closeReasonLocal, false);
+    }
+
+
+    /**
+     * WebSocket 1.0. Section 2.1.5.
+     * Need internal close method as spec requires that the local endpoint
+     * receives a 1006 on timeout.
+     *
+     * @param closeReasonMessage The close reason to pass to the remote endpoint
+     * @param closeReasonLocal   The close reason to pass to the local endpoint
+     * @param closeSocket        Should the socket be closed immediately rather than waiting
+     *                           for the server to respond
+     */
+    public void doClose(CloseReason closeReasonMessage, CloseReason closeReasonLocal,
+            boolean closeSocket) {
         // Double-checked locking. OK because state is volatile
         if (state != State.OPEN) {
             return;
@@ -478,6 +495,9 @@ public class WsSession implements Session {
             state = State.OUTPUT_CLOSED;
 
             sendCloseMessage(closeReasonMessage);
+            if (closeSocket) {
+                wsRemoteEndpoint.close();
+            }
             fireEndpointOnClose(closeReasonLocal);
         }
 
@@ -605,10 +625,20 @@ public class WsSession implements Session {
                 localEndpoint.onError(this, e);
             }
         } finally {
-            webSocketContainer.unregisterSession(localEndpoint, this);
+            webSocketContainer.unregisterSession(getSessionMapKey(), this);
         }
     }
 
+
+    private Object getSessionMapKey() {
+        if (endpointConfig instanceof ServerEndpointConfig) {
+            // Server
+            return ((ServerEndpointConfig) endpointConfig).getPath();
+        } else {
+            // Client
+            return localEndpoint;
+        }
+    }
 
     /**
      * Use protected so unit tests can access this method directly.

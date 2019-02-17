@@ -44,7 +44,157 @@
   They eventually become mixed with the numbered issues (i.e., numbered
   issues do not "pop up" wrt. others).
 -->
-<section name="Tomcat 9.0.15 (markt)" rtext="in development">
+<section name="Tomcat 9.0.17 (markt)" rtext="in development">
+  <subsection name="Catalina">
+    <changelog>
+      <fix>
+        Refactor how cookies are transferred from the base request to a
+        <code>PushBuilder</code> so that they are accessible, and may be edited,
+        via the standard <code>PushBuilder</code> methods for working with HTTP
+        headers. (markt)
+      </fix>
+      <update>
+        Simplify the value of <code>jarsToSkip</code> property in
+        <code>catalina.properties</code> file for tomcat-i18n jar files.
+        Use prefix pattern instead of listing each language. (kkolinko)
+      </update>
+    </changelog>
+  </subsection>
+  <subsection name="Coyote">
+    <changelog>
+      <fix>
+        When performing an HTTP/1.1 upgrade to HTTP/2 (h2c) ensure that the hostname
+        and port from the HTTP/1.1 Host header of the upgraded request are made
+        available via the standard methods
+        <code>ServletRequest.getServerName()</code> and
+        <code>ServletRequest.getServerPort()</code>. (markt)
+      </fix>
+    </changelog>
+  </subsection>
+  <subsection name="WebSocket">
+    <changelog>
+      <scode>
+        Remove the <code>STREAMS_DROP_EMPTY_MESSAGES</code> system property that
+        was introduced to work-around four failing TCK tests. An alternative
+        solution has been implemented. Sending messages via
+        <code>getSendStream()</code> and <code>getSendWriter()</code> will now
+        only result in messages on the wire if data is written to the
+        <code>OutputStream</code> or <code>Writer</code>. Writing zero length
+        data will result in an empty message. Note that sending a message via an
+        <code>Encoder</code> may result in the message being send via
+        <code>getSendStream()</code> or <code>getSendWriter()</code>. (markt)
+      </scode>
+    </changelog>
+  </subsection>
+  <subsection name="Web applications">
+    <changelog>
+      <fix>
+        Fix messages used by Manager and Host Manager web applications.
+        Disambiguate message keys used when adding or removing a host.
+        Improve display of summary values on the status page: separate
+        terms and values with a whitespace. Improve wording of messages
+        for expire sessions command. (kkolinko)
+      </fix>
+      <fix>
+        Do not add CSRF nonce parameter and suppress Referer header for external
+        links in Manager and Host Manager web applications. (kkolinko)
+      </fix>
+    </changelog>
+  </subsection>
+  <subsection name="Tribes">
+    <changelog>
+      <add>
+        Add feature that discover local member from the static member list.
+        (kfujino)
+      </add>
+    </changelog>
+  </subsection>
+  <subsection name="Other">
+    <changelog>
+      <add>
+        Expand the coverage and quality of the French translations provided
+        with Apache Tomcat. (remm)
+      </add>
+      <fix>
+        <bug>63041</bug>: Revert the changes for <bug>53930</bug> that added
+        support for the <code>CATALINA_OUT_CMD</code> environment variable as
+        they prevented correct operation with systemd configurations that did
+        not explicitly specify a PID file. (markt)
+      </fix>
+      <add>
+        Expand the coverage and quality of the Russian translations provided
+        with Apache Tomcat. (kkolinko)
+      </add>
+    </changelog>
+  </subsection>
+</section>
+<section name="Tomcat 9.0.16 (markt)" rtext="2019-02-08">
+  <subsection name="Web applications">
+    <changelog>
+      <fix>
+        Use client's preferred language for the Server Status page of the
+        Manager web application. Review and fix several cases when the
+        client's language preference was not respected in Manager and
+        Host Manager web applications. (kkolinko)
+      </fix>
+      <fix>
+        <bug>63141</bug>: Ensure that translated manager response strings still
+        start with <code>OK -</code> where expected by the associated Ant tasks.
+        (markt)
+      </fix>
+      <fix>
+        <bug>63143</bug>: Ensure that the Manager web application respects the
+        language preferences of the user as configured in the browser when the
+        language of the default system locale is not English. (markt)
+      </fix>
+    </changelog>
+  </subsection>
+  <subsection name="Tribes">
+    <changelog>
+      <fix>
+        Remove unnecessary shutdown for executor. (kfujino)
+      </fix>
+    </changelog>
+  </subsection>
+  <subsection name="Other">
+    <changelog>
+      <update>
+        Update the NSIS Installer used to build the Windows installer to version
+        3.04. (markt)
+      </update>
+      <add>
+        Add Czech translations to Apache Tomcat. Includes contributions from
+        Arnošt Havelka and Alice. (markt)
+      </add>
+      <add>
+        Expand the coverage and quality of the Spanish translations provided
+        with Apache Tomcat. Includes contributions from Ulises Gonzalez Horta.
+        (markt)
+      </add>
+      <add>
+        Expand the coverage and quality of the French translations provided
+        with Apache Tomcat. (remm)
+      </add>
+      <add>
+        Expand the coverage and quality of the Korean translations provided
+        with Apache Tomcat. (woonsan)
+      </add>
+      <add>
+        Expand the coverage and quality of the Japanese translations provided
+        with Apache Tomcat. Includes contributions from Yujiorama. (markt)
+      </add>
+      <add>
+        Expand the coverage and quality of the Chinese translations provided
+        with Apache Tomcat. Includes contributions from zheng. (markt)
+      </add>
+      <add>
+        Expand the coverage and quality of the Russian translations provided
+        with Apache Tomcat. (kkolinko)
+      </add>
+    </changelog>
+  </subsection>
+</section>
+<section name="Tomcat 9.0.15 (markt)" rtext="not released">
   <subsection name="Catalina">
     <changelog>
       <fix>
@@ -125,6 +275,25 @@
         to be more tolerant of optional escaping when the <code>\nn</code> form
         is used. (markt)
       </add>
+      <fix>
+        Avoid a swallowed (and therefore ignored) access failure during web
+        application class loading when running under a
+        <code>SecurityManager</code>. (markt)
+      </fix>
+      <update>
+        Add SSL configuration options to the JMX remote listener using the
+        <code>SSLHostConfig</code> framework. (remm)
+      </update>
+      <update>
+        Update the recommended minimum Tomcat Native version to 1.2.21. (markt)
+      </update>
+      <fix>
+        <bug>63137</bug>: If the resources for a web application have been
+        configured with multiple locations mapped to
+        <code>/WEB-INF/classes</code>, ensure that all of those locations are
+        used when building the web application class path. Patch provided by
+        Marcin Gołębski. (markt)
+      </fix>
     </changelog>
   </subsection>
   <subsection name="Coyote">
@@ -147,6 +316,9 @@
         Fix use of write timeout instead of read timeout for HTTP/2 NIO2
         frame read. (remm)
       </fix>
+      <fix>
+        Fix incorrect APR sendfile thread stop. (remm)
+      </fix>
     </changelog>
   </subsection>
   <subsection name="Jasper">
@@ -167,8 +339,48 @@
   <subsection name="WebSocket">
     <changelog>
       <fix>
+        <bug>57974</bug>: Ensure implementation of
+        <code>Session.getOpenSessions()</code> returns correct value for both
+        client-side and server-side calls. (markt)
+      </fix>
+      <fix>
         <bug>63019</bug>: Use payload remaining bytes rather than limit when
         writing. Submitted by Benoit Courtilly. (remm)
+      </fix>
+      <fix>
+        When running under a <code>SecurityManager</code>, ensure that the
+        <code>ServiceLoader</code> look-up for the default
+        <code>javax.websocket.server.ServerEndpointConfig.Configurator</code>
+        implementation completes correctly rather than silently using the
+        hard-coded fall-back. (markt)
+      </fix>
+      <fix>
+        Ensure that the network connection is closed if the client receives an
+        I/O error trying to communicate with the server. (markt)
+      </fix>
+      <fix>
+        Ignore synthetic methods when scanning POJO methods. (markt)
+      </fix>
+      <fix>
+        Implement the requirements of section 5.2.1 of the WebSocket 1.1
+        specification and ensure that if the deployment of one Endpoint fails,
+        no Endpoints are deployed for that web application. (markt)
+      </fix>
+      <fix>
+        Implement the requirements of section 4.3 of the WebSocket 1.1
+        specification and ensure that the deployment of an Endpoint fails if
+        <code>@PathParam</code> is used with an invalid parameter type. (markt)
+      </fix>
+      <fix>
+        Ensure a <code>DeploymentException</code> rather than an
+        <code>IllegalArgumentException</code> is thrown if a method annotated
+        with <code>@OnMessage</code> does not conform to the requirements set
+        out in the Javadoc. (markt)
+      </fix>
+      <fix>
+        Improve algorithm that determines if two <code>@OnMessage</code>
+        annotations have been added for the same message type. Prior to this
+        change some matches were missed. (markt)
       </fix>
     </changelog>
   </subsection>
@@ -247,6 +459,18 @@
         <fix>63072</fix>: Remove extras (JMX remote listener and webservices
         object factories) and merge them back into the core build.
         (remm)
+      </update>
+      <add>
+        Update the internal fork of Apache Commons FileUpload to pick up the
+        changes in the Apache Commons FileUpload 1.4 release. (markt)
+      </add>
+      <update>
+        Update the internal fork of Apache Commons DBCP 2 to de20b77
+        (2019-01-29) to pick up some bug fixes and enhancements. (markt)
+      </update>
+      <update>
+        Update the packaged version of the Tomcat Native Library to 1.2.21 to
+        pick up the memory leak fixes when using NIO/NIO2 with OpenSSL. (markt)
       </update>
     </changelog>
   </subsection>

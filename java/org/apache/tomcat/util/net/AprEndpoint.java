@@ -491,8 +491,6 @@ public class AprEndpoint extends AbstractEndpoint<Long,Long> implements SNICallB
         // List the ciphers that the client is permitted to negotiate
         SSLContext.setCipherSuite(ctx, sslHostConfig.getCiphers());
         // Load Server key and certificate
-        // TODO: Confirm assumption that idx is not specific to
-        //       key/certificate type
         int idx = 0;
         for (SSLHostConfigCertificate certificate : sslHostConfig.getCertificates(true)) {
             SSLContext.setCertificate(ctx,
@@ -1975,8 +1973,10 @@ public class AprEndpoint extends AbstractEndpoint<Long,Long> implements SNICallB
             sendfileThread.start();
         }
 
-        protected void stop() {
+        protected synchronized void stop() {
             sendfileRunning = false;
+            // In case the sendfile thread is in the idle wait
+            this.notify();
 
             // Wait for the sendfile thread to exit, otherwise parallel
             // destruction of sockets which are still in the poller can cause
@@ -1993,9 +1993,6 @@ public class AprEndpoint extends AbstractEndpoint<Long,Long> implements SNICallB
             if (sendfileThread.isAlive()) {
                 log.warn(sm.getString("endpoint.sendfileThreadStop"));
             }
-
-            // In case the sendfile thread is in the idle wait
-            this.notify();
         }
 
         /**
@@ -2102,7 +2099,7 @@ public class AprEndpoint extends AbstractEndpoint<Long,Long> implements SNICallB
                 // Loop if endpoint is paused
                 while (sendfileRunning && paused) {
                     try {
-                        Thread.sleep(1000);
+                        Thread.sleep(pollTime / 1000);
                     } catch (InterruptedException e) {
                         // Ignore
                     }

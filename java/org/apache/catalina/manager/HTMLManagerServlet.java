@@ -139,11 +139,11 @@ public final class HTMLManagerServlet extends ManagerServlet {
                         e.toString());
             }
         } else if (command.equals("/sslConnectorCiphers")) {
-            sslConnectorCiphers(request, response);
+            sslConnectorCiphers(request, response, smClient);
         } else if (command.equals("/sslConnectorCerts")) {
-            sslConnectorCerts(request, response);
+            sslConnectorCerts(request, response, smClient);
         } else if (command.equals("/sslConnectorTrustedCerts")) {
-            sslConnectorTrustedCerts(request, response);
+            sslConnectorTrustedCerts(request, response, smClient);
         } else if (command.equals("/upload") || command.equals("/deploy") ||
                 command.equals("/reload") || command.equals("/undeploy") ||
                 command.equals("/expire") || command.equals("/start") ||
@@ -373,11 +373,11 @@ public final class HTMLManagerServlet extends ManagerServlet {
         args[0] = smClient.getString("htmlManagerServlet.manager");
         args[1] = response.encodeURL(request.getContextPath() + "/html/list");
         args[2] = smClient.getString("htmlManagerServlet.list");
-        args[3] = response.encodeURL
+        args[3] = // External link
             (request.getContextPath() + "/" +
              smClient.getString("htmlManagerServlet.helpHtmlManagerFile"));
         args[4] = smClient.getString("htmlManagerServlet.helpHtmlManager");
-        args[5] = response.encodeURL
+        args[5] = // External link
             (request.getContextPath() + "/" +
              smClient.getString("htmlManagerServlet.helpManagerFile"));
         args[6] = smClient.getString("htmlManagerServlet.helpManager");
@@ -455,9 +455,11 @@ public final class HTMLManagerServlet extends ManagerServlet {
                 }
 
                 args = new Object[7];
-                args[0] = "<a href=\"" +
-                        URLEncoder.DEFAULT.encode(contextPath + "/", StandardCharsets.UTF_8) +
-                        "\">" + Escape.htmlElementContent(displayPath) + "</a>";
+                args[0] = // External link
+                        "<a href=\""
+                        + URLEncoder.DEFAULT.encode(contextPath + "/", StandardCharsets.UTF_8)
+                        + "\" " + Constants.REL_EXTERNAL + ">"
+                        + Escape.htmlElementContent(displayPath) + "</a>";
                 if ("".equals(ctxt.getWebappVersion())) {
                     args[1] = noVersion;
                 } else {
@@ -764,24 +766,24 @@ public final class HTMLManagerServlet extends ManagerServlet {
 
 
     protected void sslConnectorCiphers(HttpServletRequest request,
-            HttpServletResponse response) throws ServletException, IOException {
-        request.setAttribute("cipherList", getConnectorCiphers());
+            HttpServletResponse response, StringManager smClient) throws ServletException, IOException {
+        request.setAttribute("cipherList", getConnectorCiphers(smClient));
         getServletContext().getRequestDispatcher(
                 connectorCiphersJspPath).forward(request, response);
     }
 
 
     protected void sslConnectorCerts(HttpServletRequest request,
-            HttpServletResponse response) throws ServletException, IOException {
-        request.setAttribute("certList", getConnectorCerts());
+            HttpServletResponse response, StringManager smClient) throws ServletException, IOException {
+        request.setAttribute("certList", getConnectorCerts(smClient));
         getServletContext().getRequestDispatcher(
                 connectorCertsJspPath).forward(request, response);
     }
 
 
     protected void sslConnectorTrustedCerts(HttpServletRequest request,
-            HttpServletResponse response) throws ServletException, IOException {
-        request.setAttribute("trustedCertList", getConnectorTrustedCerts());
+            HttpServletResponse response, StringManager smClient) throws ServletException, IOException {
+        request.setAttribute("trustedCertList", getConnectorTrustedCerts(smClient));
         getServletContext().getRequestDispatcher(
                 connectorTrustedCertsJspPath).forward(request, response);
     }

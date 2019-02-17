@@ -291,11 +291,11 @@ public final class HTMLHostManagerServlet extends HostManagerServlet {
         args[0] = smClient.getString("htmlHostManagerServlet.manager");
         args[1] = response.encodeURL(request.getContextPath() + "/html/list");
         args[2] = smClient.getString("htmlHostManagerServlet.list");
-        args[3] = response.encodeURL
+        args[3] = // External link
             (request.getContextPath() + "/" +
              smClient.getString("htmlHostManagerServlet.helpHtmlManagerFile"));
         args[4] = smClient.getString("htmlHostManagerServlet.helpHtmlManager");
-        args[5] = response.encodeURL
+        args[5] = // External link
             (request.getContextPath() + "/" +
              smClient.getString("htmlHostManagerServlet.helpManagerFile"));
         args[6] = smClient.getString("htmlHostManagerServlet.helpManager");
@@ -330,6 +330,8 @@ public final class HTMLHostManagerServlet extends HostManagerServlet {
             smClient.getString("htmlHostManagerServlet.hostsStop");
         String hostsRemove =
             smClient.getString("htmlHostManagerServlet.hostsRemove");
+        String hostThis =
+            smClient.getString("htmlHostManagerServlet.hostThis");
 
         for (Map.Entry<String, String> entry : sortedHostNamesMap.entrySet()) {
             String hostName = entry.getKey();
@@ -337,7 +339,8 @@ public final class HTMLHostManagerServlet extends HostManagerServlet {
 
             if (host != null ) {
                 args = new Object[2];
-                args[0] = Escape.htmlElementContent(hostName);
+                args[0] = // External link
+                        Escape.htmlElementContent(hostName);
                 String[] aliases = host.findAliases();
                 StringBuilder buf = new StringBuilder();
                 if (aliases.length > 0) {
@@ -357,7 +360,7 @@ public final class HTMLHostManagerServlet extends HostManagerServlet {
                 writer.print
                     (MessageFormat.format(HOSTS_ROW_DETAILS_SECTION, args));
 
-                args = new Object[4];
+                args = new Object[5];
                 if (host.getState().isAvailable()) {
                     args[0] = response.encodeURL
                     (request.getContextPath() +
@@ -376,6 +379,7 @@ public final class HTMLHostManagerServlet extends HostManagerServlet {
                      "/html/remove?name=" +
                      URLEncoder.encode(hostName, "UTF-8"));
                 args[3] = hostsRemove;
+                args[4] = hostThis;
                 if (host == this.installedHost) {
                     writer.print(MessageFormat.format(
                             MANAGER_HOST_ROW_BUTTON_SECTION, args));
@@ -487,15 +491,14 @@ public final class HTMLHostManagerServlet extends HostManagerServlet {
 
     private static final String HOSTS_ROW_DETAILS_SECTION =
         "<tr>\n" +
-        " <td class=\"row-left\"><small><a href=\"http://{0}\">{0}</a>" +
+        " <td class=\"row-left\"><small><a href=\"http://{0}\" "
+                + Constants.REL_EXTERNAL + ">{0}</a>" +
         "</small></td>\n" +
         " <td class=\"row-center\"><small>{1}</small></td>\n";
 
     private static final String MANAGER_HOST_ROW_BUTTON_SECTION =
         " <td class=\"row-left\">\n" +
-        "  <small>\n" +
-        sm.getString("htmlHostManagerServlet.hostThis") +
-        "  </small>\n" +
+        "  <small>{4}</small>\n" +
         " </td>\n" +
         "</tr>\n";
 

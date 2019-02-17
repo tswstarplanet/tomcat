@@ -103,8 +103,19 @@ class Stream extends AbstractStream implements HeaderEmitter {
             // HTTP/1.1 upgrade
             this.coyoteRequest = coyoteRequest;
             this.inputBuffer = null;
-            // Headers have been populated by this point
+            // Headers have been read by this point
             state.receivedStartOfHeaders();
+            // Populate coyoteRequest from headers
+            try {
+                prepareRequest();
+            } catch (IllegalArgumentException iae) {
+                // Something in the headers is invalid
+                // Set correct return status
+                coyoteResponse.setStatus(400);
+                // Set error flag. This triggers error processing rather than
+                // the normal mapping
+                coyoteResponse.setError();
+            }
             // TODO Assuming the body has been read at this point is not valid
             state.receivedEndOfStream();
         }
@@ -115,6 +126,44 @@ class Stream extends AbstractStream implements HeaderEmitter {
         if (this.coyoteRequest.getStartTime() < 0) {
             this.coyoteRequest.setStartTime(System.currentTimeMillis());
         }
+    }
+
+
+    private void prepareRequest() {
+        MessageBytes hostValueMB = coyoteRequest.getMimeHeaders().getUniqueValue("host");
+        if (hostValueMB == null) {
+            throw new IllegalArgumentException();
+        }
+        // This processing expects bytes. Server push will have used a String
+        // to trigger a conversion if required.
+        hostValueMB.toBytes();
+        ByteChunk valueBC = hostValueMB.getByteChunk();
+        byte[] valueB = valueBC.getBytes();
+        int valueL = valueBC.getLength();
+        int valueS = valueBC.getStart();
+
+        int colonPos = Host.parse(hostValueMB);
+        if (colonPos != -1) {
+            int port = 0;
+            for (int i = colonPos + 1; i < valueL; i++) {
+                char c = (char) valueB[i + valueS];
+                if (c < '0' || c > '9') {
+                    throw new IllegalArgumentException();
+                }
+                port = port * 10 + c - '0';
+            }
+            coyoteRequest.setServerPort(port);
+
+            // Only need to copy the host name up to the :
+            valueL = colonPos;
+        }
+
+        // Extract the host name
+        char[] hostNameC = new char[valueL];
+        for (int i = 0; i < valueL; i++) {
+            hostNameC[i] = (char) valueB[i + valueS];
+        }
+        coyoteRequest.serverName().setChars(hostNameC, 0, valueL);
     }
 
 
@@ -222,7 +271,26 @@ class Stream extends AbstractStream implements HeaderEmitter {
             }
             try {
                 if (block) {
-                    wait();
+                    long writeTimeout = handler.getProtocol().getStreamWriteTimeout();
+                    if (writeTimeout < 0) {
+                        wait();
+                    } else {
+                        wait(writeTimeout);
+                    }
+                    windowSize = getWindowSize();
+                    if (windowSize == 0) {
+                        String msg = sm.getString("stream.writeTimeout");
+                        StreamException se = new StreamException(
+                                msg, Http2Error.ENHANCE_YOUR_CALM, getIdAsInt());
+                        // Prevent the application making further writes
+                        streamOutputBuffer.closed = true;
+                        // Prevent Tomcat's error handling trying to write
+                        coyoteResponse.setError();
+                        coyoteResponse.setErrorReported();
+                        // Trigger a reset once control returns to Tomcat
+                        streamOutputBuffer.reset = se;
+                        throw new CloseNowException(msg, se);
+                    }
                 } else {
                     return 0;
                 }
@@ -232,7 +300,6 @@ class Stream extends AbstractStream implements HeaderEmitter {
                 // Stream.
                 throw new IOException(e);
             }
-            windowSize = getWindowSize();
         }
         int allocation;
         if (windowSize < reservation) {
@@ -672,6 +739,11 @@ class Stream extends AbstractStream implements HeaderEmitter {
     }
 
 
+    StreamException getResetException() {
+        return streamOutputBuffer.reset;
+    }
+
+
     private static void push(final Http2UpgradeHandler handler, final Request request,
             final Stream stream) throws IOException {
         if (org.apache.coyote.Constants.IS_SECURITY_ENABLED) {
@@ -724,6 +796,7 @@ class Stream extends AbstractStream implements HeaderEmitter {
         private volatile long written = 0;
         private int streamReservation = 0;
         private volatile boolean closed = false;
+        private volatile StreamException reset = null;
         private volatile boolean endOfStreamSent = false;
 
         /* The write methods are synchronized to ensure that only one thread at
@@ -863,9 +936,14 @@ class Stream extends AbstractStream implements HeaderEmitter {
 
         @Override
         public final void end() throws IOException {
-            closed = true;
-            flush(true);
-            writeTrailers();
+            if (reset != null) {
+                throw new CloseNowException(reset);
+            }
+            if (!closed) {
+                closed = true;
+                flush(true);
+                writeTrailers();
+            }
         }
 
         /**
@@ -953,9 +1031,26 @@ class Stream extends AbstractStream implements HeaderEmitter {
                         if (log.isDebugEnabled()) {
                             log.debug(sm.getString("stream.inputBuffer.empty"));
                         }
-                        inBuffer.wait();
+
+                        long readTimeout = handler.getProtocol().getStreamReadTimeout();
+                        if (readTimeout < 0) {
+                            inBuffer.wait();
+                        } else {
+                            inBuffer.wait(readTimeout);
+                        }
+
                         if (resetReceived) {
                             throw new IOException(sm.getString("stream.inputBuffer.reset"));
+                        }
+
+                        if (inBuffer.position() == 0) {
+                            String msg = sm.getString("stream.inputBuffer.readTimeout");
+                            StreamException se = new StreamException(
+                                    msg, Http2Error.ENHANCE_YOUR_CALM, getIdAsInt());
+                            // Trigger a reset once control returns to Tomcat
+                            coyoteResponse.setError();
+                            streamOutputBuffer.reset = se;
+                            throw new CloseNowException(msg, se);
                         }
                     } catch (InterruptedException e) {
                         // Possible shutdown / rst or similar. Use an
