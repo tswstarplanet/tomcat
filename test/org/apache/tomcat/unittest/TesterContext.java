@@ -786,6 +786,11 @@ public class TesterContext implements Context {
     }
 
     @Override
+    public InstanceManager createInstanceManager() {
+        return null;
+    }
+
+    @Override
     public Wrapper createWrapper() {
         return null;
     }
@@ -1279,4 +1284,9 @@ public class TesterContext implements Context {
     public void incrementInProgressAsyncCount() { /* NO-OP */ }
     @Override
     public void decrementInProgressAsyncCount() { /* NO-OP */ }
+
+    @Override
+    public void setCreateUploadTargets(boolean createUploadTargets) { /* NO-OP */}
+    @Override
+    public boolean getCreateUploadTargets() { return false; }
 }

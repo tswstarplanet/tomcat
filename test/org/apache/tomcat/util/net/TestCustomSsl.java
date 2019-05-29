@@ -42,7 +42,7 @@ import org.apache.tomcat.websocket.server.WsContextListener;
  */
 public class TestCustomSsl extends TomcatBaseTest {
 
-    private static enum TrustType {
+    private enum TrustType {
         ALL,
         CA,
         NONE
@@ -70,7 +70,7 @@ public class TestCustomSsl extends TomcatBaseTest {
         connector.setProperty("sslProtocol", "tls");
 
         File keystoreFile =
-            new File(TesterSupport.LOCALHOST_JKS);
+            new File(TesterSupport.LOCALHOST_RSA_JKS);
         connector.setAttribute(
                 "keystoreFile", keystoreFile.getAbsolutePath());
 

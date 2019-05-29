@@ -76,8 +76,6 @@ class StreamProcessor extends AbstractProcessor {
                             ConnectionException ce = new ConnectionException(sm.getString(
                                     "streamProcessor.error.connection", stream.getConnectionId(),
                                     stream.getIdentifier()), Http2Error.INTERNAL_ERROR);
-                            // TODO - Temporary debug code
-                            log.info(ce.getMessage(), ce);
                             stream.close(ce);
                         } else if (!getErrorState().isIoAllowed()) {
                             StreamException se = stream.getResetException();
@@ -93,10 +91,9 @@ class StreamProcessor extends AbstractProcessor {
                 } catch (Exception e) {
                     String msg = sm.getString("streamProcessor.error.connection",
                             stream.getConnectionId(), stream.getIdentifier());
-                    // TODO - Temporary debug code
-                    //if (log.isDebugEnabled()) {
-                        log.info(msg, e);
-                    //}
+                    if (log.isDebugEnabled()) {
+                        log.debug(msg, e);
+                    }
                     ConnectionException ce = new ConnectionException(msg, Http2Error.INTERNAL_ERROR);
                     ce.initCause(e);
                     stream.close(ce);
@@ -364,6 +361,13 @@ class StreamProcessor extends AbstractProcessor {
             setErrorState(ErrorState.CLOSE_NOW, e);
         }
 
+        if (!isAsync()) {
+            // If this is an async request then the request ends when it has
+            // been completed. The AsyncContext is responsible for calling
+            // endRequest() in that case.
+            endRequest();
+        }
+
         if (sendfileState == SendfileState.PENDING) {
             return SocketState.SENDFILE;
         } else if (getErrorState().isError()) {
@@ -405,7 +409,31 @@ class StreamProcessor extends AbstractProcessor {
 
 
     @Override
-    protected final SocketState dispatchEndRequest() {
+    protected final SocketState dispatchEndRequest() throws IOException {
+        endRequest();
         return SocketState.CLOSED;
+    }
+
+
+    private void endRequest() throws IOException {
+        if (!stream.isInputFinished() && getErrorState().isIoAllowed()) {
+            if (handler.hasAsyncIO() && !stream.isContentLengthInconsistent()) {
+                // Need an additional checks for asyncIO as the end of stream
+                // might have been set on the header frame but not processed
+                // yet. Checking for this here so the extra processing only
+                // occurs on the potential error condition rather than on every
+                // request.
+                return;
+            }
+            // The request has been processed but the request body has not been
+            // fully read. This typically occurs when Tomcat rejects an upload
+            // of some form (e.g. PUT or POST). Need to tell the client not to
+            // send any more data but only if a reset has not already been
+            // triggered.
+            StreamException se = new StreamException(
+                    sm.getString("streamProcessor.cancel", stream.getConnectionId(),
+                            stream.getIdentifier()), Http2Error.CANCEL, stream.getIdAsInt());
+            handler.sendStreamReset(se);
+        }
     }
 }

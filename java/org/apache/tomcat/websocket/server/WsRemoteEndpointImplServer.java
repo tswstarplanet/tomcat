@@ -21,7 +21,6 @@ import java.io.IOException;
 import java.net.SocketTimeoutException;
 import java.nio.ByteBuffer;
 import java.nio.channels.CompletionHandler;
-import java.nio.channels.InterruptedByTimeoutException;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 
@@ -81,12 +80,12 @@ public class WsRemoteEndpointImplServer extends WsRemoteEndpointImplBase {
                 }
             } else {
                 this.handler = handler;
+                timeout = getSendTimeout();
                 if (timeout > 0) {
                     // Register with timeout thread
                     timeoutExpiry = timeout + System.currentTimeMillis();
                     wsWriteTimeout.register(this);
                 }
-                timeout = getSendTimeout();
             }
             socketWrapper.write(block ? BlockingMode.BLOCK : BlockingMode.SEMI_BLOCK, timeout,
                     TimeUnit.MILLISECONDS, null, SocketWrapperBase.COMPLETE_WRITE_WITH_COMPLETION,
@@ -110,9 +109,6 @@ public class WsRemoteEndpointImplServer extends WsRemoteEndpointImplBase {
                         }
                         @Override
                         public void failed(Throwable exc, Void attachment) {
-                            if (exc instanceof InterruptedByTimeoutException) {
-                                exc = new SocketTimeoutException();
-                            }
                             if (block) {
                                 SendResult sr = new SendResult(exc);
                                 handler.onResult(sr);
@@ -224,7 +220,7 @@ public class WsRemoteEndpointImplServer extends WsRemoteEndpointImplBase {
         }
         try {
             socketWrapper.close();
-        } catch (IOException e) {
+        } catch (Exception e) {
             if (log.isInfoEnabled()) {
                 log.info(sm.getString("wsRemoteEndpointServer.closeFailed"), e);
             }

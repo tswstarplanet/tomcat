@@ -315,9 +315,8 @@ public class Catalina {
                             "setGlobalNamingResources",
                             "org.apache.catalina.deploy.NamingResourcesImpl");
 
-        digester.addObjectCreate("Server/Listener",
-                                 null, // MUST be specified in the element
-                                 "className");
+        digester.addRule("Server/Listener",
+                new ListenerCreateRule(null, "className"));
         digester.addSetProperties("Server/Listener");
         digester.addSetNext("Server/Listener",
                             "addLifecycleListener",
@@ -566,13 +565,9 @@ public class Catalina {
             digester.push(this);
             digester.parse(inputSource);
         } catch (Exception e) {
-            if  (file == null) {
-                log.warn(sm.getString("catalina.configFail", getConfigFile() + "] or [server-embed.xml"), e);
-            } else {
-                log.warn(sm.getString("catalina.configFail", file.getAbsolutePath()), e);
-                if (file.exists() && !file.canRead()) {
-                    log.warn(sm.getString("catalina.incorrectPermissions"));
-                }
+            log.warn(sm.getString("catalina.configFail", file.getAbsolutePath()), e);
+            if (file.exists() && !file.canRead()) {
+                log.warn(sm.getString("catalina.incorrectPermissions"));
             }
             return;
         }

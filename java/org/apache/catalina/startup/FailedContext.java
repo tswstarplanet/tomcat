@@ -605,6 +605,9 @@ public class FailedContext extends LifecycleMBeanBase implements Context {
     public void removeWrapperListener(String listener) { /* NO-OP */ }
 
     @Override
+    public InstanceManager createInstanceManager() { return null; }
+
+    @Override
     public Wrapper createWrapper() { return null; }
 
     @Override
@@ -814,4 +817,9 @@ public class FailedContext extends LifecycleMBeanBase implements Context {
     public void incrementInProgressAsyncCount() { /* NO-OP */ }
     @Override
     public void decrementInProgressAsyncCount() { /* NO-OP */ }
+
+    @Override
+    public void setCreateUploadTargets(boolean createUploadTargets) { /* NO-OP */}
+    @Override
+    public boolean getCreateUploadTargets() { return false; }
 }

@@ -931,6 +931,14 @@ public interface Context extends Container, ContextBind {
 
 
     /**
+     * Factory method to create and return a new InstanceManager
+     * instance. This can be used for framework integration or easier
+     * configuration with custom Context implementations.
+     * @return the instance manager
+     */
+    public InstanceManager createInstanceManager();
+
+    /**
      * Factory method to create and return a new Wrapper instance, of
      * the Java implementation class appropriate for this Context
      * implementation.  The constructor of the instantiated Wrapper
@@ -1871,4 +1879,26 @@ public interface Context extends Container, ContextBind {
 
 
     public void decrementInProgressAsyncCount();
+
+
+    /**
+     * Configure whether Tomcat will attempt to create an upload target used by
+     * this web application if it does not exist when the web application
+     * attempts to use it.
+     *
+     * @param createUploadTargets {@code true} if Tomcat should attempt to
+     *          create the upload target, otherwise {@code false}
+     */
+    public void setCreateUploadTargets(boolean createUploadTargets);
+
+
+    /**
+     * Will Tomcat attempt to create an upload target used by this web
+     * application if it does not exist when the web application attempts to use
+     * it?
+     *
+     * @return {@code true} if Tomcat will attempt to create an upload target
+     *         otherwise {@code false}
+     */
+    public boolean getCreateUploadTargets();
 }
