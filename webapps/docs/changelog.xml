@@ -91,6 +91,11 @@
         before removal of the child from the internal child collection.
         (remm)
       </scode>
+      <add>
+        Remove any fragment included in the target path used to obtain a
+        <code>RequestDispatcher</code>. The requested target path is logged as a
+        warning since this is an application error. (markt)
+      </add>
     </changelog>
   </subsection>
   <subsection name="Coyote">
@@ -249,6 +254,11 @@
         Expand the coverage and quality of the Simplified Chinese translations
         provided with Apache Tomcat. Includes contributions by 諵. (markt)
       </add>
+      <fix>
+        Use the <code>test</code> command to check for terminal availability
+        rather than the <code>tty</code> command since the <code>tty</code>
+        based test fails on non-Eglish locales. (markt)
+      </fix>
     </changelog>
   </subsection>
 </section>
